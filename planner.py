@@ -4,10 +4,12 @@ from notion_client import Client
 import calendar
 load_dotenv()
 
-NOTION_API_KEY = os.getenv("NOTION_API_KEY")
-NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
+# Helper function to format Notion IDs
+def format_notion_id(raw_id: str) -> str:
+    return f"{raw_id[:8]}-{raw_id[8:12]}-{raw_id[12:16]}-{raw_id[16:20]}-{raw_id[20:]}"
 
-notion = Client(auth=NOTION_API_KEY)
+NOTION = Client(auth=os.environ["NOTION_KEY"])
+NOTION_PAGE_ID = format_notion_id(os.environ["NOTION_PAGE_ID"])
 cal = calendar.Calendar()
 
 week_template = [
@@ -194,12 +196,50 @@ week_template = [
 ]
 
 
+
+# Fill the month with week pages
+def fill_month(year: int, month: int) -> None:
+    # function to grab the mondays in a month
+    def get_mondays_in_month(year: int, month: int) -> list[str]:
+        month_list = cal.monthdatescalendar(year, month)
+
+        mondays: list[str] = []
+        for week in month_list:
+            mondays.append(week[0].strftime("%B %d"))
+
+        return mondays
+
+    mondays:list[str] = get_mondays_in_month(year, month)
+    for week_number, monday in enumerate(mondays, start=1):
+        try:
+            create_week(monday, week_number)
+        except Exception as e:
+            print(f"Error creating week for {monday}: {e}")
+    return
+
+
+
 # Function to create a new week page in the Notion database
-def create_week(monday_date: str) -> None:
-    notion.pages.create(
-        parent={"database_id": NOTION_DATABASE_ID},
+def create_week(monday_date: str, week_number: int) -> None:
+    # Map week numbers to emoji
+    week_emojis = {
+        1: "1️⃣",
+        2: "2️⃣", 
+        3: "3️⃣",
+        4: "4️⃣",
+        5: "5️⃣"
+    }
+
+    NOTION.pages.create(
+        parent={
+            "page_id": NOTION_PAGE_ID
+            },
+        icon={
+            "type": "emoji",
+            "emoji": week_emojis.get(week_number, "🗓️")
+        },
         properties={
-            "Name": {
+            "title": {
                 "title": [
                     {
                         "type": "text",
@@ -212,5 +252,5 @@ def create_week(monday_date: str) -> None:
     )
 
 
-fill_month(2025, 11)
+fill_month(2025, 12)
 
